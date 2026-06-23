@@ -17,8 +17,8 @@ export function SavingOpportunities({ data }: { data: ProjectInsightRow[] }) {
       <CardHeader>
         <CardTitle>Top saving opportunities</CardTitle>
         <CardDescription>
-          Estimated savings if eligible work ran one model tier down. Estimates
-          from list prices, not actual billing.
+          All time · estimated savings if eligible work ran one model tier down.
+          Estimates from list prices, not actual billing.
         </CardDescription>
       </CardHeader>
       <CardContent>

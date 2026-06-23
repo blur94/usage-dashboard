@@ -63,5 +63,18 @@ describe("aggregateInsights", () => {
     expect(agg.actualCost).toBeCloseTo(31.5, 6); // 30.5 + 1
     expect(agg.potentialSavings).toBeCloseTo(12.2, 6); // opus only
     expect(agg.cacheSavings).toBeCloseTo(4.5, 6);
+    // recommendation comes from the opus entry (highest savings)
+    expect(agg.recommendation).toContain("Sonnet 4.6");
+    expect(agg.recommendation).toContain("40%");
+  });
+
+  it("returns null recommendation when no entry has a recommendation", () => {
+    const agg = aggregateInsights([
+      {
+        tokens: { input: oneMillion, output: 0, cacheCreation: 0, cacheRead: 0 },
+        model: "claude-haiku-4-5-20251001",
+      },
+    ]);
+    expect(agg.recommendation).toBeNull();
   });
 });

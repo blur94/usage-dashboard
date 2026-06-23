@@ -100,9 +100,7 @@ export default async function OverviewPage({
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Recommendation</span>
             <span className="text-sm">
-              {insight.potentialSavings > 0
-                ? `Moving cheaper-tier-eligible work down a tier could save about ${formatCurrency(insight.potentialSavings)} this month.`
-                : "You're already on the most cost-effective tiers."}
+              {insight.recommendation ?? "You're already on the most cost-effective tiers."}
             </span>
           </div>
         </CardContent>

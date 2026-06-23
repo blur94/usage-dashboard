@@ -28,6 +28,8 @@ export interface ScopeCostInsight {
   actualCost: number;
   potentialSavings: number;
   cacheSavings: number;
+  /** Recommendation from the highest-savings entry, or null. */
+  recommendation: string | null;
 }
 
 /** Cost intelligence for one token breakdown billed at one model's rates. */
@@ -84,14 +86,22 @@ export function costInsightFor(
 export function aggregateInsights(
   entries: { tokens: TokenBreakdown; model: string }[],
 ): ScopeCostInsight {
-  return entries.reduce<ScopeCostInsight>(
-    (acc, { tokens, model }) => {
-      const insight = costInsightFor(tokens, model);
-      acc.actualCost += insight.actualCost;
-      acc.potentialSavings += insight.potentialSavings;
-      acc.cacheSavings += insight.cacheSavings;
-      return acc;
-    },
-    { actualCost: 0, potentialSavings: 0, cacheSavings: 0 },
-  );
+  const result: ScopeCostInsight = {
+    actualCost: 0,
+    potentialSavings: 0,
+    cacheSavings: 0,
+    recommendation: null,
+  };
+  let topSavings = 0;
+  for (const { tokens, model } of entries) {
+    const insight = costInsightFor(tokens, model);
+    result.actualCost += insight.actualCost;
+    result.potentialSavings += insight.potentialSavings;
+    result.cacheSavings += insight.cacheSavings;
+    if (insight.recommendation !== null && insight.potentialSavings > topSavings) {
+      topSavings = insight.potentialSavings;
+      result.recommendation = insight.recommendation;
+    }
+  }
+  return result;
 }

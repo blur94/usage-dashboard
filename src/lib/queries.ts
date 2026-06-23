@@ -285,10 +285,10 @@ export function getCostInsight(
   const rows = database
     .prepare(
       `SELECT model,
-              SUM(input_tokens) AS input,
-              SUM(output_tokens) AS output,
-              SUM(cache_creation_input_tokens) AS cacheCreation,
-              SUM(cache_read_input_tokens) AS cacheRead
+              COALESCE(SUM(input_tokens), 0) AS input,
+              COALESCE(SUM(output_tokens), 0) AS output,
+              COALESCE(SUM(cache_creation_input_tokens), 0) AS cacheCreation,
+              COALESCE(SUM(cache_read_input_tokens), 0) AS cacheRead
        FROM events
        ${sinceMs != null ? "WHERE ts_ms >= ?" : ""}
        GROUP BY model`,
@@ -310,6 +310,7 @@ export interface ProjectInsightRow {
   actualCost: number;
   potentialSavings: number;
   cacheSavings: number;
+  recommendation: string | null;
 }
 
 /** Per-project cost insight, sorted by potential savings (largest first). */
@@ -319,10 +320,10 @@ export function getProjectInsights(
   const rows = database
     .prepare(
       `SELECT project_id AS projectId, project_path AS projectPath, model,
-              SUM(input_tokens) AS input,
-              SUM(output_tokens) AS output,
-              SUM(cache_creation_input_tokens) AS cacheCreation,
-              SUM(cache_read_input_tokens) AS cacheRead
+              COALESCE(SUM(input_tokens), 0) AS input,
+              COALESCE(SUM(output_tokens), 0) AS output,
+              COALESCE(SUM(cache_creation_input_tokens), 0) AS cacheCreation,
+              COALESCE(SUM(cache_read_input_tokens), 0) AS cacheRead
        FROM events
        GROUP BY project_id, model`,
     )
@@ -351,6 +352,7 @@ export function getProjectInsights(
       actualCost: agg.actualCost,
       potentialSavings: agg.potentialSavings,
       cacheSavings: agg.cacheSavings,
+      recommendation: agg.recommendation,
     });
   }
   out.sort((a, b) => b.potentialSavings - a.potentialSavings);
