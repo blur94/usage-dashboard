@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Claude Code Token Usage Dashboard
 
-## Getting Started
+A local, private dashboard that reads Claude Code's own session logs from
+`%USERPROFILE%\.claude\projects\`, aggregates token usage into SQLite, and
+visualizes it. No external services, no API keys, nothing leaves your machine.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4
+- shadcn/ui (preset `b5KHubjyC` — mira style, sky theme)
+- better-sqlite3 at `data/usage-dashboard.db` (gitignored)
+- Recharts (chart colors wired to `var(--chart-1..5)`)
+- `@js-temporal/polyfill` for all date logic, `nuqs` for URL-persisted filters
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install        # native better-sqlite3 build is allowlisted in package.json
+pnpm sync           # parse all session logs and seed the database
+pnpm dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command          | What it does                                                    |
+| ---------------- | -------------------------------------------------------------- |
+| `pnpm sync`      | One-shot parse of all session logs into SQLite (idempotent).   |
+| `pnpm watch`     | Initial sync, then auto-sync on every change to a `.jsonl` log.|
+| `pnpm dev`       | Run the dashboard.                                             |
+| `pnpm build`     | Production build.                                              |
+| `pnpm typecheck` | `tsc --noEmit`.                                               |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+You can also sync from inside the app with the **Sync** button in the header
+(`POST /api/sync`), which returns the count of newly inserted rows.
 
-## Learn More
+## Pages
 
-To learn more about Next.js, take a look at the following resources:
+- **Overview** — KPI cards (tokens this month, cache hit rate, top model this
+  week, active projects) and a daily input-vs-output stacked bar chart. The date
+  range and model filters persist in the URL.
+- **Projects** — sortable table, one row per project; click to drill into its
+  sessions.
+- **Models** — total token consumption by model across all time.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How parsing works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Each assistant turn in a session `.jsonl` that carries a `message.usage` block
+becomes one row, keyed by its message `uuid` (the idempotency key, so re-syncing
+never duplicates). Synthetic placeholder turns are skipped. The project path is
+taken from the log's `cwd` field; its URL id is a short SHA-256 of that path.

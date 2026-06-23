@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local usage database (NFR-4)
+/data/usage-dashboard.db
+/data/usage-dashboard.db-shm
+/data/usage-dashboard.db-wal
+.gstack/
