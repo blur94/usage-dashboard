@@ -1,7 +1,10 @@
 import { Temporal } from "@js-temporal/polyfill";
+import type DatabaseType from "better-sqlite3";
 import { getDb } from "./db";
 import { projectShortName } from "./parse-claude-logs";
 import { costExpressionSql } from "./pricing";
+import type { TokenBreakdown } from "./pricing";
+import { aggregateInsights, type ScopeCostInsight } from "./cost-insights";
 
 const COST = costExpressionSql();
 
@@ -252,6 +255,108 @@ export function getModelTotals(): ModelRow[] {
        ORDER BY totalTokens DESC`,
     )
     .all() as ModelRow[];
+}
+
+interface ModelTokenRow {
+  model: string;
+  input: number;
+  output: number;
+  cacheCreation: number;
+  cacheRead: number;
+}
+
+function toEntry(r: ModelTokenRow): { tokens: TokenBreakdown; model: string } {
+  return {
+    model: r.model,
+    tokens: {
+      input: r.input,
+      output: r.output,
+      cacheCreation: r.cacheCreation,
+      cacheRead: r.cacheRead,
+    },
+  };
+}
+
+/** Aggregate cost insight over events since `sinceMs` (default: all time). */
+export function getCostInsight(
+  sinceMs?: number,
+  database: DatabaseType.Database = getDb(),
+): ScopeCostInsight {
+  const rows = database
+    .prepare(
+      `SELECT model,
+              COALESCE(SUM(input_tokens), 0) AS input,
+              COALESCE(SUM(output_tokens), 0) AS output,
+              COALESCE(SUM(cache_creation_input_tokens), 0) AS cacheCreation,
+              COALESCE(SUM(cache_read_input_tokens), 0) AS cacheRead
+       FROM events
+       ${sinceMs != null ? "WHERE ts_ms >= ?" : ""}
+       GROUP BY model`,
+    )
+    .all(...(sinceMs != null ? [sinceMs] : [])) as ModelTokenRow[];
+  return aggregateInsights(rows.map(toEntry));
+}
+
+/** Cost insight scoped to the current calendar month. */
+export function getCostInsightThisMonth(
+  database: DatabaseType.Database = getDb(),
+): ScopeCostInsight {
+  return getCostInsight(startOfMonthMs(), database);
+}
+
+export interface ProjectInsightRow {
+  projectId: string;
+  shortName: string;
+  actualCost: number;
+  potentialSavings: number;
+  cacheSavings: number;
+  recommendation: string | null;
+}
+
+/** Per-project cost insight, sorted by potential savings (largest first). */
+export function getProjectInsights(
+  database: DatabaseType.Database = getDb(),
+): ProjectInsightRow[] {
+  const rows = database
+    .prepare(
+      `SELECT project_id AS projectId, project_path AS projectPath, model,
+              COALESCE(SUM(input_tokens), 0) AS input,
+              COALESCE(SUM(output_tokens), 0) AS output,
+              COALESCE(SUM(cache_creation_input_tokens), 0) AS cacheCreation,
+              COALESCE(SUM(cache_read_input_tokens), 0) AS cacheRead
+       FROM events
+       GROUP BY project_id, model`,
+    )
+    .all() as Array<ModelTokenRow & { projectId: string; projectPath: string }>;
+
+  const grouped = new Map<
+    string,
+    {
+      projectPath: string;
+      entries: { tokens: TokenBreakdown; model: string }[];
+    }
+  >();
+  for (const r of rows) {
+    const g =
+      grouped.get(r.projectId) ?? { projectPath: r.projectPath, entries: [] };
+    g.entries.push(toEntry(r));
+    grouped.set(r.projectId, g);
+  }
+
+  const out: ProjectInsightRow[] = [];
+  for (const [projectId, g] of grouped) {
+    const agg = aggregateInsights(g.entries);
+    out.push({
+      projectId,
+      shortName: projectShortName(g.projectPath),
+      actualCost: agg.actualCost,
+      potentialSavings: agg.potentialSavings,
+      cacheSavings: agg.cacheSavings,
+      recommendation: agg.recommendation,
+    });
+  }
+  out.sort((a, b) => b.potentialSavings - a.potentialSavings);
+  return out;
 }
 
 export { timeZone };

@@ -9,7 +9,9 @@
     "lint": "eslint",
     "sync": "tsx scripts/sync.ts",
     "watch": "tsx scripts/watch.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
@@ -41,7 +43,8 @@
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

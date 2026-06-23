@@ -16,6 +16,7 @@ import {
   formatTokens,
 } from "@/lib/format";
 import {
+  getCostInsightThisMonth,
   getDailyTokens,
   getModelTotals,
   getOverviewKpis,
@@ -33,6 +34,7 @@ export default async function OverviewPage({
   const model = sp.model || undefined;
 
   const kpis = getOverviewKpis();
+  const insight = getCostInsightThisMonth();
   const daily = getDailyTokens(days, model);
   const models = getModelTotals().map((m) => m.model);
 
@@ -70,6 +72,39 @@ export default async function OverviewPage({
           hint="Last 7 days"
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Cost insights</CardTitle>
+          <CardDescription>
+            This month · estimates from list prices, not actual billing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">
+              Saved by prompt caching
+            </span>
+            <span className="text-xl font-semibold tabular-nums">
+              {formatCurrency(insight.cacheSavings)}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">
+              Potential savings one tier down
+            </span>
+            <span className="text-xl font-semibold tabular-nums">
+              {formatCurrency(insight.potentialSavings)}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Recommendation</span>
+            <span className="text-sm">
+              {insight.recommendation ?? "You're already on the most cost-effective tiers."}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">

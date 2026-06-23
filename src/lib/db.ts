@@ -20,6 +20,13 @@ export function getDb(): Database.Database {
   return db;
 }
 
+/** A fresh in-memory database with the schema applied. For tests. */
+export function openMemoryDb(): Database.Database {
+  const memory = new Database(":memory:");
+  migrate(memory);
+  return memory;
+}
+
 function migrate(database: Database.Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS events (
@@ -48,8 +55,10 @@ function migrate(database: Database.Database): void {
  * no duplicates (the message uuid is the primary key). Returns the number of
  * newly inserted rows.
  */
-export function insertEvents(events: UsageEvent[]): number {
-  const database = getDb();
+export function insertEvents(
+  events: UsageEvent[],
+  database: Database.Database = getDb(),
+): number {
   const stmt = database.prepare(`
     INSERT OR IGNORE INTO events (
       uuid, session_id, project_path, project_id, model, timestamp, ts_ms,
